@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm mx-auto p-4 border-0" style="max-width: 600px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold text-dark mb-0">{{ language.name }} Quiz</h3>
+        <span class="badge px-3 py-2 fs-6 text-white" style="background-color: #4f46e5;">Question {{ current_num }} of {{ total_num }}</span>
+    </div>
+    
+    <!-- Progress Bar -->
+    <div class="progress mb-4" style="height: 6px;">
+        <div class="progress-bar" role="progressbar" style="width: {{ (current_num / total_num) * 100 }}%; background-color: #4f46e5;" aria-valuenow="{{ current_num }}" aria-valuemin="0" aria-valuemax="{{ total_num }}"></div>
+    </div>
+
+    <form method="POST">
+        <p class="fs-5 fw-medium text-dark mb-4">{{ quiz.question }}</p>
+        
+        <div class="form-check p-3 mb-2 border rounded bg-light">
+            <input class="form-check-input ms-0 me-2" type="radio" name="option" value="{{ quiz.option_a }}" id="opt1" required>
+            <label class="form-check-label w-100 cursor-pointer" for="opt1">{{ quiz.option_a }}</label>
+        </div>
+        <div class="form-check p-3 mb-2 border rounded bg-light">
+            <input class="form-check-input ms-0 me-2" type="radio" name="option" value="{{ quiz.option_b }}" id="opt2">
+            <label class="form-check-label w-100 cursor-pointer" for="opt2">{{ quiz.option_b }}</label>
+        </div>
+        <div class="form-check p-3 mb-2 border rounded bg-light">
+            <input class="form-check-input ms-0 me-2" type="radio" name="option" value="{{ quiz.option_c }}" id="opt3">
+            <label class="form-check-label w-100 cursor-pointer" for="opt3">{{ quiz.option_c }}</label>
+        </div>
+        <div class="form-check p-3 mb-4 border rounded bg-light">
+            <input class="form-check-input ms-0 me-2" type="radio" name="option" value="{{ quiz.option_d }}" id="opt4">
+            <label class="form-check-label w-100 cursor-pointer" for="opt4">{{ quiz.option_d }}</label>
+        </div>
+        
+        <button type="submit" class="btn text-white w-100 py-2 fw-semibold shadow-sm" style="background-color: #4f46e5; border-color: #4f46e5;">Submit Answer & Next →</button>
+    </form>
+    
+    <div class="mt-4 text-center">
+        <a href="/dashboard" class="text-decoration-none small fw-semibold text-muted">← Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

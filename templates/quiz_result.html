@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4" style="max-width: 800px;">
+    <!-- Result Header Card -->
+    <div class="card shadow-sm border-0 text-center p-5 mb-4">
+        {% if passed %}
+            <div class="display-1 text-success mb-2">🎉</div>
+            <h2 class="fw-bold text-success mb-1">Congratulations! You Passed!</h2>
+            <p class="text-muted">You have demonstrated proficiency in this language assessment.</p>
+        {% else %}
+            <div class="display-1 text-danger mb-2">📚</div>
+            <h2 class="fw-bold text-danger mb-1">Keep Practicing!</h2>
+            <p class="text-muted">You did not reach the 70% passing threshold. Review the explanations below and try again.</p>
+        {% endif %}
+
+        <div class="row g-3 justify-content-center mt-3">
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-light rounded">
+                    <small class="text-muted d-block">Score</small>
+                    <span class="fs-4 fw-bold text-dark">{{ score }} / {{ total }}</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-light rounded">
+                    <small class="text-muted d-block">Percentage</small>
+                    <span class="fs-4 fw-bold {% if passed %}text-success{% else %}text-danger{% endif %}">{{ "%.1f"|format(percentage) }}%</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-light rounded">
+                    <small class="text-muted d-block">Status</small>
+                    <span class="fs-4 fw-bold {% if passed %}text-success{% else %}text-danger{% endif %}">{% if passed %}PASS{% else %}FAIL{% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <a href="/dashboard" class="btn text-white fw-semibold px-4 py-2 me-2" style="background-color: #4f46e5; border-color: #4f46e5;">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Answers & Explanations Breakdown -->
+    <h4 class="fw-bold text-dark mb-3">Detailed Answers & Explanations</h4>
+    
+    {% for item in history %}
+    <div class="card shadow-sm border-0 mb-3 p-4 border-start border-4 {% if item.is_correct %}border-success{% else %}border-danger{% endif %}">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="fw-bold text-dark mb-0">{{ loop.index }}. {{ item.question }}</h5>
+            {% if item.is_correct %}
+                <span class="badge bg-success">Correct</span>
+            {% else %}
+                <span class="badge bg-danger">Incorrect</span>
+            {% endif %}
+        </div>
+
+        <div class="small my-2">
+            <p class="mb-1"><strong>Your Answer:</strong> <span class="{% if item.is_correct %}text-success{% else %}text-danger{% endif %}">{{ item.selected if item.selected else "No answer selected" }}</span></p>
+            {% if not item.is_correct %}
+                <p class="mb-1"><strong>Correct Answer:</strong> <span class="text-success">{{ item.correct }}</span></p>
+            {% endif %}
+        </div>
+
+        <div class="bg-light p-3 rounded mt-2">
+            <small class="text-muted d-block fw-semibold mb-1">💡 Explanation:</small>
+            <small class="text-dark">{{ item.explanation }}</small>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
