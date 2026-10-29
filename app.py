@@ -1,60 +1,47 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-import mysql.connector
+import sqlite3
+import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
-# MySQL Database Configuration (XAMPP default)
-db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',        # Default XAMPP password is blank
-    'database': 'language_app'
-}
+# SQLite database file path
+DB_PATH = 'language_app.db'
 
 def get_db_connection():
-    return mysql.connector.connect(**db_config)
+    conn = sqlite3.connect(DB_PATH)
+    # Allows dictionary-style access to columns (e.g., user['username'])
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
-    # Connect without database first to ensure it exists or can be created
-    conn = mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password=''
-    )
-    cursor = conn.cursor()
-    cursor.execute("CREATE DATABASE IF NOT EXISTS language_app")
-    cursor.close()
-    conn.close()
-
-    # Connect to the specific database and create tables
     conn = get_db_connection()
     cursor = conn.cursor()
     
     # Users Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            username VARCHAR(255) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
         )
     ''')
     
     # Languages Table (Supports up to 20 languages)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS languages (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) UNIQUE NOT NULL,
-            code VARCHAR(10) UNIQUE NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            code TEXT UNIQUE NOT NULL
         )
     ''')
-
+    
     # Lessons Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS lessons (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            language_id INT,
-            title VARCHAR(255) NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            language_id INTEGER,
+            title TEXT NOT NULL,
             content TEXT NOT NULL,
             FOREIGN KEY (language_id) REFERENCES languages(id) ON DELETE CASCADE
         )
@@ -63,14 +50,14 @@ def init_db():
     # Quiz Table (Supports 50 questions per language & explanations)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS quiz (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            language_id INT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            language_id INTEGER,
             question TEXT NOT NULL,
-            option_a VARCHAR(255) NOT NULL,
-            option_b VARCHAR(255) NOT NULL,
-            option_c VARCHAR(255) NOT NULL,
-            option_d VARCHAR(255) NOT NULL,
-            answer VARCHAR(255) NOT NULL,
+            option_a TEXT NOT NULL,
+            option_b TEXT NOT NULL,
+            option_c TEXT NOT NULL,
+            option_d TEXT NOT NULL,
+            answer TEXT NOT NULL,
             explanation TEXT NOT NULL,
             FOREIGN KEY (language_id) REFERENCES languages(id) ON DELETE CASCADE
         )
@@ -86,18 +73,17 @@ def init_db():
             ("Turkish", "tr"), ("Polish", "pl"), ("Swedish", "sv"), ("Greek", "el"),
             ("Vietnamese", "vi"), ("Indonesian", "id"), ("Swahili", "sw"), ("Hebrew", "he")
         ]
-        cursor.executemany("INSERT INTO languages (name, code) VALUES (%s, %s)", languages_list)
+        cursor.executemany("INSERT INTO languages (name, code) VALUES (?, ?)", languages_list)
         conn.commit()
 
     # Seed Sample Lessons and Questions if empty
     cursor.execute("SELECT COUNT(*) FROM lessons")
     if cursor.fetchone()[0] == 0:
-        # Get French ID (assume ID 1)
         cursor.execute("SELECT id FROM languages WHERE code = 'fr'")
         fr_row = cursor.fetchone()
         fr_id = fr_row[0] if fr_row else 1
 
-        cursor.execute("INSERT INTO lessons (language_id, title, content) VALUES (%s, %s, %s)", 
+        cursor.execute("INSERT INTO lessons (language_id, title, content) VALUES (?, ?, ?)", 
                        (fr_id, "Lesson 1: Basic French Greetings", 
                         "1. Bonjour = Hello / Good Morning\n2. Merci = Thank you\n3. Au revoir = Goodbye\n4. Oui = Yes\n5. Non = No"))
 
@@ -107,7 +93,6 @@ def init_db():
         fr_row = cursor.fetchone()
         fr_id = fr_row[0] if fr_row else 1
 
-        # Example seed questions (You can expand this up to 50 questions per language)
         sample_questions = [
             (fr_id, "What is the English translation of 'Bonjour'?", "Goodbye", "Hello", "Thank You", "Please", "Hello", "'Bonjour' is the standard French greeting used during the day meaning 'Hello' or 'Good morning'."),
             (fr_id, "What does 'Merci' mean in English?", "Sorry", "Please", "Thank you", "Goodbye", "Thank you", "'Merci' translates directly to 'Thank you' in English."),
@@ -115,12 +100,15 @@ def init_db():
         ]
         cursor.executemany("""
             INSERT INTO quiz (language_id, question, option_a, option_b, option_c, option_d, answer, explanation) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, sample_questions)
         
     conn.commit()
     cursor.close()
     conn.close()
+
+# Automatically initialize database tables and seed data on startup
+init_db()
 
 @app.route('/')
 def index():
@@ -139,13 +127,13 @@ def register():
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             conn.commit()
             cursor.close()
             conn.close()
             flash('Registration successful! Please log in.', 'success')
             return redirect(url_for('login'))
-        except mysql.connector.Error:
+        except sqlite3.IntegrityError:
             flash('Username already exists. Choose another.', 'danger')
             
     return render_template('register.html')
@@ -157,8 +145,8 @@ def login():
         password = request.form['password'].strip()
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
         user = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -179,7 +167,7 @@ def dashboard():
         return redirect(url_for('login'))
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM languages")
     languages = cursor.fetchall()
     cursor.close()
@@ -193,11 +181,11 @@ def lesson(lang_id):
         return redirect(url_for('login'))
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM languages WHERE id = %s", (lang_id,))
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM languages WHERE id = ?", (lang_id,))
     language = cursor.fetchone()
     
-    cursor.execute("SELECT * FROM lessons WHERE language_id = %s", (lang_id,))
+    cursor.execute("SELECT * FROM lessons WHERE language_id = ?", (lang_id,))
     lessons = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -209,11 +197,10 @@ def quiz(lang_id):
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # Initialize quiz session if starting a new quiz
     if 'quiz_lang_id' not in session or session['quiz_lang_id'] != lang_id or 'quiz_questions' not in session:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM quiz WHERE language_id = %s LIMIT 50", (lang_id,))
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM quiz WHERE language_id = ? LIMIT 50", (lang_id,))
         questions = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -235,13 +222,13 @@ def quiz(lang_id):
         return redirect(url_for('quiz_result'))
 
     current_q_id = questions_ids[current_index]
-
+    
     if request.method == 'POST':
         selected_option = request.form.get('option')
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM quiz WHERE id = %s", (current_q_id,))
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM quiz WHERE id = ?", (current_q_id,))
         current_q = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -250,7 +237,6 @@ def quiz(lang_id):
         if is_correct:
             session['score'] += 1
             
-        # Store history for final review report
         history = session.get('answers_history', [])
         history.append({
             'question': current_q['question'],
@@ -260,8 +246,6 @@ def quiz(lang_id):
             'explanation': current_q['explanation']
         })
         session['answers_history'] = history
-        
-        # Increment index
         session['current_index'] += 1
         
         if session['current_index'] >= len(questions_ids):
@@ -269,14 +253,13 @@ def quiz(lang_id):
         
         return redirect(url_for('quiz', lang_id=lang_id))
 
-    # GET Request: Fetch question details & language details
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM quiz WHERE id = %s", (current_q_id,))
+    cursor.execute("SELECT * FROM quiz WHERE id = ?", (current_q_id,))
     quiz_data = cursor.fetchone()
     
-    cursor.execute("SELECT * FROM languages WHERE id = %s", (lang_id,))
+    cursor.execute("SELECT * FROM languages WHERE id = ?", (lang_id,))
     language = cursor.fetchone()
     
     cursor.close()
@@ -292,11 +275,10 @@ def quiz_result():
     score = session.get('score', 0)
     total = len(session.get('quiz_questions', []))
     percentage = (score / total) * 100 if total > 0 else 0
-    passed = percentage >= 70  # Pass mark: 70%
+    passed = percentage >= 70
     
     history = session.get('answers_history')
     
-    # Clear quiz session data after viewing results
     session.pop('quiz_questions', None)
     session.pop('current_index', None)
     session.pop('score', None)
@@ -312,5 +294,4 @@ def logout():
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True, port=5000)
