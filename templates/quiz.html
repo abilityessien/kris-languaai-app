@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card shadow-sm mx-auto p-4 border-0" style="max-width: 600px;">
+<div class="card shadow-sm mx-auto p-4 border-0 rounded-3" style="max-width: 600px;">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="fw-bold text-dark mb-0">{{ language.name }} Quiz</h3>
         <span class="badge px-3 py-2 fs-6 text-white" style="background-color: #4f46e5;">Question {{ current_num }} of {{ total_num }}</span>
@@ -35,7 +35,7 @@
     </form>
     
     <div class="mt-4 text-center">
-        <a href="/dashboard" class="text-decoration-none small fw-semibold text-muted">← Back to Dashboard</a>
+        <a href="{{ url_for('dashboard') }}" class="text-decoration-none small fw-semibold text-muted">← Back to Dashboard</a>
     </div>
 </div>
 {% endblock %}
